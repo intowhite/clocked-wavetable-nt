@@ -1,5 +1,5 @@
-// Clocked Wavetable v1.0.0 -- Expert Sleepers disting NT native C++ algorithm
-// MIT License. Source prototype; hardware ARM build requires official distingNT_API.
+// Clocked Wavetable v1.1.0 -- Expert Sleepers disting NT native C++ algorithm
+// MIT License. Build with the official distingNT_API.
 #include <distingnt/api.h>
 #include <distingnt/wav.h>
 #include <stdint.h>
@@ -11,11 +11,9 @@ static constexpr float kHighV=1.0f, kLowV=0.2f;
 static constexpr double kPi=3.14159265358979323846;
 #include "sin_lut.inc"
 
-// Factory parameter IDs intentionally track page/visual order.
-// This is a pre-v1 BREAKING change: a new instance starts with Mode (index 0)
-// rather than Clock In, which previously caused the NT to open Inputs first.
+// Keep released parameter IDs stable; page membership is defined separately below.
 enum Parameter {
-    // Main — first parameter must live on the first visible page.
+    // Existing main-page parameters; Wavetable now appears on Shape.
     kMode, kVoltageRange, kBank, kQuality, kPlayhead,
     // Shape
     kRate, kMorph, kSkew, kSquish, kPhaseOffset, kAmplitude, kOffsetMv, kCharacter,
@@ -25,6 +23,8 @@ enum Parameter {
     kClockIn, kTriggerIn, kResetIn, kMorphIn, kWarpIn,
     // Outputs
     kOutput, kOutputB, kPhaseB, kOutputC, kPhaseC, kOutputD, kPhaseD, kOutputMode,
+    // Appended to preserve the parameter indices used by v1.0 presets.
+    kMorphMode,
     kNumParameters
 };
 enum { kLfo=0, kEnvelope=1, kGated=2 };
@@ -59,6 +59,7 @@ static char const* const kSources[]={"External","MIDI clock","Internal","Tap CV"
 static char const* const kFormats[]={"4 PPQN (1/16)","24 PPQN","1 PPQN (1/4)","1 Bar","Every N Bars"};
 static char const* const kOnOff[]={"Off","On"};
 static char const* const kQualityLabels[]={"Adaptive","Full rate"};
+enum { kMorphAuto=0, kMorphSmooth=1, kMorphStepped=2 };
 static char const* const kCharacters[]={"Clean","8-bit","6-bit","4-bit","2-bit",
     "Grainy 32","Choppy 16","Chunky 8","Crushed 4"};
 static char const* const kStops[]={"Free run","Freeze"};
@@ -102,14 +103,15 @@ static const _NT_parameter kParameters[] = {
     {"Phased output D",0,kNT_lastBus,0,kNT_unitCvOutput,0,nullptr},
     {"Phase D",0,359,270,kNT_unitDegrees,0,nullptr},
     {"Output mode",0,1,1,kNT_unitOutputMode,0,nullptr},
+    {"Morph mode",0,2,0,kNT_unitHasStrings,0,nullptr},
 };
 static_assert(sizeof(kParameters)/sizeof(kParameters[0])==kNumParameters,"Parameter mismatch");
 static_assert(sizeof(kRatioLabels)/sizeof(kRatioLabels[0])==sizeof(kRatios)/sizeof(kRatios[0]),"Rate labels");
-// High-level setup lives on Main; all the hands-on modulation controls are
-// on Shape, including Rate, Morph, Character and DC Offset.
-static const uint8_t kMainPage[]={kMode,kVoltageRange,kBank,kQuality,kPlayhead};
-static const uint8_t kShapePage[]={kRate,kMorph,kSkew,kSquish,kPhaseOffset,kAmplitude,kOffsetMv,kCharacter};
-// Parameter IDs follow the page order, and membership is built per instance.
+// High-level setup lives on Main; bank selection and hands-on modulation
+// controls live on Shape, including Rate, Morph, Character and DC Offset.
+static const uint8_t kMainPage[]={kMode,kVoltageRange,kMorphMode,kQuality,kPlayhead};
+static const uint8_t kShapePage[]={kBank,kRate,kMorph,kSkew,kSquish,kPhaseOffset,kAmplitude,kOffsetMv,kCharacter};
+// Page membership is independent of parameter IDs and is built per instance.
 // Recalculate the host's visible pages whenever a controlling setting changes.
 // This requires disting NT API v13 (NT_updateParameterPages).
 static const uint8_t kInputsDefault[]={kClockIn,kResetIn,kMorphIn,kWarpIn};
@@ -117,11 +119,34 @@ static const uint8_t kOutputsDefault[]={kOutput,kOutputB,kOutputC,kOutputD,kOutp
 // A valid default page set is also available before the host assigns v[].
 static const uint8_t kClockDefault[]={kClockSource,kClockFormat,kSyncStatus,kStopMode};
 static const _NT_parameterPage kDefaultPages[]={
-    {"Main",5,0,{0,0},kMainPage}, {"Shape",8,0,{0,0},kShapePage},
+    {"Main",5,0,{0,0},kMainPage}, {"Shape",9,0,{0,0},kShapePage},
     {"Clock",4,0,{0,0},kClockDefault}, {"Inputs",4,0,{0,0},kInputsDefault},
     {"Outputs",5,0,{0,0},kOutputsDefault}
 };
 static const _NT_parameterPages kDefaultPageSet={5,kDefaultPages};
+// An optional '-step' filename tag requests discrete waveform selection in
+// Auto morph mode, independently of the NT's per-wave length suffix.
+// Valid examples: "Arps-step-256.wav", "Arps-step-512.wav", "Arps-step.wav",
+// and "Arps-step-v2-2048.wav". Match a complete tag, not "-stepper".
+// NT_getWavetableInfo() supplies the indexed bank name.
+static char asciiLower(char c){return (c>='A'&&c<='Z')?static_cast<char>(c+('a'-'A')):c;}
+static bool bankRequestsSteps(const char* name){
+    if(!name)return false;
+    for(const char* p=name;*p;++p){
+        if(*p!='-')continue;
+        const char word[]="-step";
+        bool match=true;
+        for(int i=0;i<5;++i){
+            if(!p[i]||asciiLower(p[i])!=word[i]){match=false;break;}
+        }
+        if(!match)continue;
+        // The complete flag may end the indexed name or precede another
+        // filename token, the .wav extension, or the waveform length.
+        const char next=p[5];
+        if(next==0 || next=='-' || next=='.' || next=='_')return true;
+    }
+    return false;
+}
 static float clampf(float x,float lo,float hi){return x<lo?lo:(x>hi?hi:x);}
 static double clampd(double x,double lo,double hi){return x<lo?lo:(x>hi?hi:x);}
 // The NT plug-in loader does not necessarily provide the libgcc helpers for
@@ -201,6 +226,7 @@ struct ClockedWT: public _NT_algorithm {
     bool mounted,reading,ready;
     volatile bool readComplete;
     int activeBank;
+    bool bankStepPreferred;
     uint32_t wavetableCount;
 
     // 32-bit sample counters wrap naturally; subtraction remains correct for
@@ -247,7 +273,7 @@ struct ClockedWT: public _NT_algorithm {
     void invalidateAux(){for(int i=0;i<3;++i)aux[i].invalidate();}
 
     explicit ClockedWT(int16_t* storage):table(storage),mounted(false),reading(false),ready(false),
-        readComplete(false),activeBank(-1),wavetableCount(0),samples(0),lastExternalEdge(0),lastTap(0),
+        readComplete(false),activeBank(-1),bankStepPreferred(false),wavetableCount(0),samples(0),lastExternalEdge(0),lastTap(0),
         edgeCount(0),unitPosition(0),clockOriginUnits(0),externalPulsePeriod(0),unitSamples(24000),pllTrimPerSample(0),
         seenEdge(false),hasPeriod(false),clockHigh(false),triggerHigh(false),resetHigh(false),
         tapSeen(false),clockStopped(false),midiTickCount(0),midiStartCount(0),midiStopCount(0),
@@ -343,6 +369,9 @@ static void refreshLibrary(ClockedWT* wt){
     // choose a different bank (or re-add the algorithm) to try again.
     wt->ready=false;
     wt->renderValid=false;wt->loFiValid=false;wt->invalidateAux();wt->previewValid=false;
+    _NT_wavetableInfo bankInfo={};
+    NT_getWavetableInfo(static_cast<uint32_t>(wanted),bankInfo);
+    wt->bankStepPreferred=bankRequestsSteps(bankInfo.name);
     wt->request.index=static_cast<uint32_t>(wanted);
     wt->request.callback=readFinished;
     wt->request.error=false;
@@ -462,7 +491,7 @@ static void configurePages(ClockedWT* wt,bool notifyHost){
     const uint8_t outputCount=n;
 
     wt->visiblePages[0]={"Main",5,0,{0,0},kMainPage};
-    wt->visiblePages[1]={"Shape",8,0,{0,0},kShapePage};
+    wt->visiblePages[1]={"Shape",9,0,{0,0},kShapePage};
     wt->visiblePages[2]={"Clock",clockCount,0,{0,0},wt->clockParams};
     wt->visiblePages[3]={"Inputs",inputCount,0,{0,0},wt->inputParams};
     wt->visiblePages[4]={"Outputs",outputCount,0,{0,0},wt->outputParams};
@@ -547,13 +576,13 @@ static void parameterChanged(_NT_algorithm* base,int param){
             }
         }
     }
-    if(param==kBank||param==kMorph||param==kSkew||param==kSquish||
+    if(param==kBank||param==kMorph||param==kMorphMode||param==kSkew||param==kSquish||
        param==kPhaseOffset||param==kCharacter||param==kAmplitude||
        param==kVoltageRange||param==kOffsetMv)wt->previewValid=false;
     if(param==kOutputB||param==kPhaseB)wt->aux[0].invalidate();
     if(param==kOutputC||param==kPhaseC)wt->aux[1].invalidate();
     if(param==kOutputD||param==kPhaseD)wt->aux[2].invalidate();
-    if(param==kBank||param==kMorph||param==kSkew||param==kSquish||param==kPhaseOffset||param==kQuality||param==kCharacter){
+    if(param==kBank||param==kMorph||param==kMorphMode||param==kSkew||param==kSquish||param==kPhaseOffset||param==kQuality||param==kCharacter){
         wt->renderValid=false;wt->loFiValid=false;wt->invalidateAux();
     }
 }
@@ -596,7 +625,22 @@ static float evaluate(const ClockedWT* wt,float phase,float morphCv,float warpCv
     eval.phase=time;
     float scan=clampf(wt->v[kMorph]*0.001f+morphCv*0.2f,0,1);
     uint32_t count=wt->request.numWaves;
-    eval.offset=count>1?scan*static_cast<float>(count-1)*(1.0f-0.000001f):0;
+    if(count<=1){
+        eval.offset=0;
+    }else{
+        const float last=static_cast<float>(count-1);
+        const bool stepped=wt->v[kMorphMode]==kMorphStepped ||
+            (wt->v[kMorphMode]==kMorphAuto && wt->bankStepPreferred);
+        if(stepped){
+            // Select one whole waveform. The evaluator documents offset < N-1,
+            // so the final wave is addressed just below the upper bound.
+            const uint32_t index=static_cast<uint32_t>(scan*last+0.5f);
+            const float offset=static_cast<float>(index);
+            eval.offset=offset>=last?last*(1.0f-0.000001f):offset;
+        }else{
+            eval.offset=scan*last*(1.0f-0.000001f);
+        }
+    }
     eval.frequency=frequency;
     return NT_evaluateWavetable(wt->request,eval);
 }
@@ -908,6 +952,15 @@ static int syncStatus(ClockedWT* wt,char* out){
 static int parameterString(_NT_algorithm* base,int param,int value,char* buf){
     ClockedWT* wt=static_cast<ClockedWT*>(base);
     if(param==kSyncStatus)return syncStatus(wt,buf);
+    if(param==kMorphMode){
+        const char* label="Auto (Smooth)";
+        if(value==kMorphSmooth)label="Smooth";
+        else if(value==kMorphStepped)label="Stepped";
+        else if(wt->bankStepPreferred)label="Auto (Stepped)";
+        int i=0;
+        while(label[i]&&i<kNT_parameterStringSize-1){buf[i]=label[i];++i;}
+        buf[i]=0;return i;
+    }
     if(param!=kBank)return 0;
     const char* label="No wavetables";
     if(!wt->mounted)label="Waiting for SD";
