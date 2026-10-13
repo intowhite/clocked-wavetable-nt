@@ -1,65 +1,81 @@
-# Clocked Wavetable — disting NT
+# Clocked Wavetable
 
-**Clocked Wavetable** is a native C++ modulation generator for the [Expert Sleepers disting NT](https://www.expert-sleepers.co.uk/distingNT.html). It plays and morphs through the NT's SD-card wavetable banks as a tempo-synchronized **LFO, one-shot envelope, or gated cycling envelope**. A graphical waveform display, phase warping, voltage controls, and optional phase-shifted outputs make it useful for both conventional modulation and more experimental CV patterns.
+**Clocked Wavetable** is a free, open-source wavetable LFO and envelope generator for the [Expert Sleepers disting NT](https://www.expert-sleepers.co.uk/distingNT.html). Create clock-synchronized modulation from the NT’s wavetable library, morph between shapes, reshape their timing, and generate up to four phase-shifted CV outputs.
 
-> Public release source: **v1.0.0**. Before publishing the ARM binary, compile and check this exact source on a disting NT; the newly renamed phase-output labels have not yet been hardware-verified here. Firmware **1.15.0 or later** is required by the API v13 page-refresh functionality. This project is community-created, not an official Expert Sleepers product.
+Designed for hands-on modulation: precise clocking when you need it, strange evolving waveforms when you don't.
 
 ## Features
 
-- **Tempo sync:** External CV clock (4, 24, or 1 PPQN; one pulse per bar; or one pulse every N bars, N=2–128), incoming MIDI clock with Start/Stop/Continue transport, internal BPM, and CV tap tempo.
-- **Musical rates:** divisions and multiplications from **÷64** to **×64**, with one cycle per quarter note at ×1 for PPQN clocks, or one cycle per bar at ×1 in bar-clock modes.
-- **Three playback modes:** LFO, triggerable one-shot Envelope, and Gated cycle mode.
-- **Wavetable morphing:** scans existing NT wavetable banks. Supports alternate banks selected on the Wavetable parameter. Includes Morph CV.
-- **Wave shaping:** **Warp** shifts the temporal midpoint, **Squish** bends phase progression, with separate Phase, Amplitude and Offset controls. Warp CV supported.
-- **CV ranges:** −5…+5 V, 0…5 V and 0…10 V.
-- **Character:** Clean, 8/6/4/2-bit output quantization, or 32/16/8/4 positions per cycle for stepped modulation.
-- **Optional phased outputs B/C/D:** independent enable/routing, each with its own relative phase offset (defaults 90°/180°/270°); disabled by default. First turn from Off automatically suggests the next unused physical output (typically Out 2/3/4), rather than Input 1. Manual bus selection is retained.
-- **On-device waveform preview** and grouped, conditional parameter pages (Main, Shape, Clock, Inputs, Outputs).
-- **Adaptive CV renderer**, designed to reduce CPU load compared with full-rate wavetable processing. Full rate remains selectable.
+- **Three playback modes:** continuously cycling LFO, triggered one-shot Envelope, and Gated cycling Envelope.
+- **Flexible clock sync:** external CV, MIDI clock with transport controls, internal BPM, and CV tap tempo.
+- **Divisions and multiplications:** ÷64 to ×64, with support for 4 PPQN, 24 PPQN, 1 PPQN, one pulse per bar, and one pulse every 2–128 bars.
+- **Wavetable morphing:** scan and interpolate between waves in the NT’s existing or user-supplied wavetable banks; modulate Morph with CV.
+- **Wave shaping:** Warp, Squish, Phase, Amplitude, and DC Offset, with a separate CV input for Warp.
+- **Character modes:** 8-, 6-, 4-, and 2-bit quantization; plus stepped waveforms with 32, 16, 8, or 4 positions per cycle.
+- **Four outputs:** a primary output plus three optional, independently routed phase-shifted copies (90°, 180°, and 270° by default).
+- **Output ranges:** −5 to +5 V, 0–5 V, or 0–10 V.
+- **Live waveform preview** and an **Adaptive** rendering mode for efficient CV generation.
 
-## Installation (no compilation needed)
+## Installation
 
-1. Open the **Releases** section on this GitHub repository and download `clocked_wavetable.o` from the most recent release. Alternatively use the packaged `clocked_wavetable_plugin.zip` if provided.
-2. Place `clocked_wavetable.o` on the disting NT MicroSD card in **`/programs/plug-ins/`**.
-3. Safely eject the card from your computer and reboot the module.
-4. Open **Misc → Plug-ins → View info** to confirm the plugin scanned successfully, then add **Clocked Wavetable** to a preset.
+1. Open [Releases](../../releases) and download **`clocked_wavetable.o`** from the latest release.
+2. Copy the file to **`/programs/plug-ins/`** on your disting NT's MicroSD card.
+3. Safely eject the card and reboot the NT.
+4. Add **Clocked Wavetable** from the NT’s algorithm list.
 
-A built `.o` **must** be attached to a GitHub Release; GitHub's automatic source ZIP is not an installable plugin. You only need additional SD-card wavetable files if you want to use banks beyond the NT's existing library. **No third-party wavetable banks are bundled with this repository.**
+**Requirements:** disting NT with firmware **1.15.0 or newer**. No extra wavetable files are required—the plugin uses the NT's existing wavetable library. Compatible additional banks can be placed in the NT's `wavetables` directory.
+
+> Download the `.o` asset under **Releases**. GitHub's automatically generated “Source code” ZIP is for developers and cannot be installed directly on the NT.
 
 ## Quick start
 
-- Set **Clock source** to `External`, then choose the actual rate of the pulses you send (default **4 PPQN**, one pulse per sixteenth note).
-- Set **Shape → Rate** to `×1` for one LFO cycle per quarter note (PPQN) or per incoming bar (bar format).
-- Set **Wavetable** to your preferred NT bank; use **Morph** to scan its shapes.
-- Change **Warp** and **Squish**, then adjust **Voltage**, **Amplitude**, and **Offset** for your target CV destination.
-- Route output A and optionally B/C/D (phase-shifted copies); Envelope mode also needs a trigger source, Gated mode a gate.
-- For MIDI synchronization, select **Clock source = MIDI clock** and ensure your MIDI device sends realtime clock and Start/Stop/Continue as needed.
+1. On **Main**, choose **LFO**, your output voltage range, and a wavetable bank. **Adaptive** CV quality is selected by default.
+2. On **Clock**, select **External**, **MIDI clock**, **Internal**, or **Tap CV**. For external CV clock, choose the incoming clock format. The default is **4 PPQN** (one pulse per sixteenth note).
+3. On **Shape**, set **Rate** and sweep **Morph**. Use **Warp** to shift the waveform's timing and **Squish** to reshape its phase progression.
+4. On **Outputs**, route **Output A**. Enable **Phased output B**, **C**, or **D** to add phase-shifted copies.
+5. For **Envelope** and **Gated** modes, assign a trigger or gate source on **Inputs**.
 
-Bar-clock BPM display assumes 4/4 and is therefore an **estimate**; bar-relative synchronization itself does not require knowing the time signature.
+### Clock rates
 
-## Building from source (Windows)
+The clock format tells the plugin how to interpret **incoming CV pulses**; it doesn't change the meaning of MIDI clock, which uses its standard 24 pulses per quarter note.
 
-Requires [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) (`arm-none-eabi-g++`) and the official [disting NT API](https://github.com/expertsleepersltd/distingNT_API).
+| CV clock format | Incoming pulses | Rate ×1 |
+| --- | --- | --- |
+| **4 PPQN** (default) | One pulse per 16th note | One cycle per quarter note |
+| 24 PPQN | 24 pulses per quarter note | One cycle per quarter note |
+| 1 PPQN | One pulse per quarter note | One cycle per quarter note |
+| 1 Bar | One pulse per bar | One cycle per bar |
+| Every N Bars | One pulse every 2–128 bars | One cycle per bar |
+
+For bar-based clocks, the **Sync status** BPM readout assumes 4/4 and is shown as an estimate. Synchronization to the incoming bar pulses itself does not depend on time signature.
+
+**MIDI transport:** Start resets the waveform phase, Stop freezes it, and Continue resumes. Your MIDI source must send transport messages as well as MIDI clock ticks.
+
+## Parameters
+
+| Page | Controls |
+| --- | --- |
+| **Main** | Mode, Voltage, Wavetable, CV quality, Playhead |
+| **Shape** | Rate, Morph, Warp, Squish, Phase, Amplitude, Offset, Character |
+| **Clock** | Clock source, applicable clock settings, Sync status, On clock stop (when applicable) |
+| **Inputs** | Clock, trigger/gate, reset, Morph CV, Warp CV (shown where applicable) |
+| **Outputs** | Output A, optional Phased outputs B–D, their phase offsets, Output mode |
+
+Options that aren't relevant to the current mode or clock source are hidden automatically.
+
+## Building from source
+
+On Windows, install the [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) and make sure `arm-none-eabi-g++` is on your PATH. Then, from the repository folder:
 
 ```powershell
 git clone https://github.com/expertsleepersltd/distingNT_API.git
 .\build.ps1
 ```
 
-`build.ps1` checks unresolved symbol imports and generates `clocked_wavetable.o`. After confirming that the binary loads on your NT, attach it to a GitHub Release.
+The build produces `clocked_wavetable.o`. The SDK is an external dependency and is not included in this repository.
 
-The repository intentionally **does not commit the SDK directory or a local `.o`**. Publish tested binaries as GitHub Release assets.
+## License
 
-## Repository files
+Released under the [MIT License](LICENSE).
 
-- `clocked_wavetable.cpp` — native disting NT plugin source
-- `sin_lut.inc` — required DSP lookup-table data
-- `build.ps1` — Windows build script
-- `LICENSE` — MIT license
-- `.gitignore` — ignores the downloaded SDK and generated binary
-
-## License and acknowledgements
-
-MIT License — see [LICENSE](LICENSE).
-
-Uses the [Expert Sleepers disting NT API](https://github.com/expertsleepersltd/distingNT_API), which is a separate upstream dependency. Wavetable references to other devices are descriptive only; this project is not affiliated with Industrial Music Electronics or Expert Sleepers.
+This is a community-created plugin for the Expert Sleepers disting NT, not an official Expert Sleepers product. Third-party wavetable banks are not included.
