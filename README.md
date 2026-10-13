@@ -1,5 +1,7 @@
 # Clocked Wavetable
 
+![Clocked Wavetable artwork](wtlogo.png)
+
 **Clocked Wavetable** is a free, open-source wavetable LFO and envelope generator for the [Expert Sleepers disting NT](https://www.expert-sleepers.co.uk/distingNT.html). Create clock-synchronized modulation from the NT’s wavetable library, morph between shapes, reshape their timing, and generate up to four phase-shifted CV outputs.
 
 Designed for hands-on modulation: precise clocking when you need it, strange evolving waveforms when you don't.
