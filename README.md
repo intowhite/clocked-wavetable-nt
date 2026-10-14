@@ -1,3 +1,4 @@
+
 # Clocked Wavetable
 
 ![Clocked Wavetable artwork](wtlogo.png)
@@ -20,13 +21,15 @@ Inspired by the clockable wavetable LFO on the disting mk4 and the modulation po
 
 ## Installation
 
-1. Open [Releases](../../releases) and download **`clocked_wavetable.o`** from the latest release.
-2. Copy it to `/programs/plug-ins/` on the disting NT MicroSD card.
-3. Safely eject the card, restart the NT, and add **Clocked Wavetable** from the algorithm list.
+1. Open [Releases](../../releases) and download **`clocked_wavetable.o`**. If you'd like the additional modulation banks, also download **`3moji_Modulation_Wavetables_Vol_1.zip`** (optional).
+2. Copy **`clocked_wavetable.o`** to `/programs/plug-ins/` on the disting NT MicroSD card.
+3. **Optional wavetables:** Extract the 3moji ZIP, then copy the **16 individual `.wav` files directly into `/wavetables/`** on the MicroSD card. Put the WAVs **at the root of that folder, not inside a subfolder**; otherwise the NT may concatenate them instead of listing each file as a separate bank.
+4. Safely eject the card, restart the NT, and add **Clocked Wavetable** from the algorithm list. Choose a bank from **Shape → Wavetable**.
 
-**Requires disting NT firmware 1.15.0 or later.**
+Correct: `/wavetables/3moji-Basic_Shapes-256.wav`  
+Incorrect: `/wavetables/3moji/3moji-Basic_Shapes-256.wav`
 
-Clocked Wavetable works with the NT's existing wavetable library. The optional **3moji Modulation Wavetables Vol. 1** collection provides additional shapes; it is not required to use the plugin.
+**Requires disting NT firmware 1.15.0 or later.** The plugin also works with the NT's existing wavetables; the 3moji collection is optional.
 
 ## Quick start
 
@@ -95,10 +98,11 @@ Stepped **Morph Mode** changes how the plugin selects *between waveforms*. The s
 
 ## Optional wavetable collection
 
-**3moji Modulation Wavetables Vol. 1** is available as a separate ZIP under [Releases](../../releases). It contains **15 original banks, 64 waveforms per bank (960 total)**, designed for modulation rather than conventional audio-rate oscillator playback.
+**3moji Modulation Wavetables Vol. 1** is available as a separate ZIP under [Releases](../../releases). It contains **16 original banks, 64 waveforms per bank (1,024 total)**, designed for modulation rather than conventional audio-rate oscillator playback.
 
 | Bank | Character | Auto Morph |
 | --- | --- | --- |
+| **Basic Shapes** | Sine, triangle, skewed triangles, rising/falling saws, trapezoid, square and variable pulse widths | Smooth |
 | **Angular Circuits** | Jagged, angular and irregular contours | Smooth |
 | **Envelope Sculptures** | Plucks, swells, holds, and evolving envelope shapes | Smooth |
 | **Envelope Sculptures II** | Dramatic attacks, staircases, bouncing pulses, and asymmetric tails | Smooth |
@@ -119,7 +123,7 @@ The five **Wub** banks progress through **1, 2, 3, 4, 6, and 8 cycles per wavefo
 
 Each WAV is mono, 16-bit, and contains 64 waveforms of 256 samples. Filenames begin with `3moji-` and end in `-256.wav`; banks intended for discrete selection include `-step`.
 
-To install, download `3moji_Modulation_Wavetables_Vol_1.zip`, extract the **15 WAV files** into `/wavetables/` on the NT MicroSD card, and restart the module.
+For installation and folder placement, follow the [Installation](#installation) steps above.
 
 ### Using the arpeggio banks
 
